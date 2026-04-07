@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Inventory Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#f2f1ed;--surface:#fff;--surface2:#f7f6f2;--surface3:#eceae3;
+  --border:#e2dfd6;--border2:#ccc9be;
+  --text:#181816;--text2:#5a5956;--text3:#96948f;
+  --green:#2d6a0f;--gbg:#e4f4d0;
+  --red:#991f1f;--rbg:#fde8e8;
+  --blue:#1450a3;--bbg:#dceefb;
+  --amber:#7a4508;--abg:#fdecd4;
+  --purple:#3d2e7c;--pbg:#ece9fb;
+  --teal:#0d6e6e;--tbg:#d4f4f0;
+  --r:10px;--rs:6px;
+  --sh:0 1px 4px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:200;box-shadow:var(--sh)}
+.logo h1{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.logo span{font-size:10px;color:var(--text3)}
+.site-tabs{display:flex;gap:2px}
+.stab{padding:6px 18px;border-radius:var(--rs);cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);border:none;background:transparent;transition:all .15s}
+.stab.active{color:var(--surface);font-weight:700}
+.stab.mv.active{background:#2d6a0f}
+.stab.bnd.active{background:#1450a3}
+.stab.plt.active{background:#3d2e7c}
+.stab:hover:not(.active){background:var(--surface3)}
+
+/* STATUS */
+.sbar{padding:5px 24px;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.sdot.live{background:#4caf50;animation:blink 2s infinite}
+.sdot.err{background:#e53935}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* PAGE */
+.page{display:none;padding:20px 24px 60px}
+.page.active{display:block}
+
+/* MONTH BAR */
+.mbar{display:flex;align-items:center;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.mlabel{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-right:4px}
+.mpill{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;white-space:nowrap}
+.mpill:hover:not(.active){background:var(--surface3)}
+.mpill.active.mv{background:#2d6a0f;color:#fff;border-color:#2d6a0f}
+.mpill.active.bnd{background:#1450a3;color:#fff;border-color:#1450a3}
+.mpill.active.plt{background:#3d2e7c;color:#fff;border-color:#3d2e7c}
+
+/* METRIC CARDS */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi.green::before{background:#2d6a0f}
+.kpi.red::before{background:#991f1f}
+.kpi.blue::before{background:#1450a3}
+.kpi.amber::before{background:#7a4508}
+.kpi.purple::before{background:#3d2e7c}
+.kpi.teal::before{background:#0d6e6e}
+.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px}
+.kpi-val{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-val.green{color:#2d6a0f}
+.kpi-val.red{color:#991f1f}
+.kpi-val.blue{color:#1450a3}
+.kpi-val.amber{color:#7a4508}
+.kpi-val.purple{color:#3d2e7c}
+.kpi-val.teal{color:#0d6e6e}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:5px}
+
+/* MAIN GRID */
+.main-grid{display:grid;grid-template-columns:1fr 380px;gap:16px;margin-bottom:16px}
+.main-grid-3{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text)}
+.card-sub{font-size:10px;color:var(--text3);font-weight:500}
+
+/* CHART */
+.chart-wrap{padding:16px;position:relative}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{background:var(--surface2);color:var(--text3);font-weight:700;font-size:10px;padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+th.tl{text-align:left}
+td{padding:6px 10px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.tl{text-align:left;font-weight:700}
+td.tm{text-align:left;color:var(--text2)}
+tr:last-child td{border-bottom:none}
+tr:nth-child(even) td{background:var(--surface2)}
+tr.tot td{font-weight:700;border-top:2px solid var(--border2);background:var(--surface3)}
+.sl{border-left:2px solid var(--border2)!important}
+.vi{color:#2d6a0f;font-weight:700}
+.vo{color:#991f1f;font-weight:700}
+.vb{color:#1450a3;font-weight:700}
+.vp{color:#3d2e7c;font-weight:700}
+.vd{color:var(--text3)}
+
+/* BOTTOM ROW */
+.bot-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ORDERS TABLE */
+.st{display:inline-block;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+.st-done{background:#e4f4d0;color:#2d6a0f}
+.st-part{background:#fdecd4;color:#7a4508}
+.st-ong{background:#dceefb;color:#1450a3}
+.st-pend{background:var(--surface3);color:var(--text2);border:1px solid var(--border)}
+
+/* INFO ROW */
+.info-row{display:flex;gap:20px;padding:10px 16px;font-size:11px;color:var(--text2);border-top:1px solid var(--border);background:var(--surface2);flex-wrap:wrap}
+.info-row strong{color:var(--text)}
+
+/* SITE BADGE */
+.site-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:16px}
+.site-badge.mv{background:#e4f4d0;color:#2d6a0f}
+.site-badge.bnd{background:#dceefb;color:#1450a3}
+.site-badge.plt{background:#ece9fb;color:#3d2e7c}
+
+/* SETTINGS */
+.set-wrap{max-width:600px}
+.set-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.set-title{font-size:13px;font-weight:700;margin-bottom:14px}
+.csv-row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.csv-row label{font-size:11px;font-weight:600;width:100px;flex-shrink:0}
+input[type=url]{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:11px;font-family:monospace;min-width:0}
+.btn{padding:8px 18px;border-radius:var(--rs);cursor:pointer;font-size:12px;font-weight:600;border:none;background:var(--text);color:#fff}
+.btn-sec{background:transparent;color:var(--text);border:1px solid var(--border2)}
+
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.main-grid{grid-template-columns:1fr}.bot-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.main-grid-3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><h1>Inventory Dashboard</h1><span>Ma Vill · Bandung · Plastimer</span></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="site-tabs">
+      <button class="stab mv active" onclick="nav('mavill')">Ma Vill</button>
+      <button class="stab bnd" onclick="nav('bandung')">Bandung</button>
+      <button class="stab plt" onclick="nav('plastimer')">Plastimer</button>
+      <button class="stab" onclick="nav('settings')" style="font-size:13px">⚙</button>
+    </div>
+  </div>
+</div>
+<div class="sbar"><span class="sdot" id="sdot"></span><span id="smsg">Loading...</span></div>
+
+<!-- MA VILL -->
+<div class="page active" id="page-mavill">
+  <div class="mbar" id="mv-mbar"></div>
+  <div class="site-badge mv">MA VILL &nbsp;·&nbsp; <span id="mv-cur-month" style="font-weight:500"></span></div>
+  <div class="kpi-grid" id="mv-kpis"></div>
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Monthly trend</span><span class="card-sub">IN · OUT · Balance</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="mv-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">This month breakdown</span><span class="card-sub" id="mv-breakdown-month"></span></div>
+      <div class="tbl-wrap" id="mv-breakdown"></div>
+    </div>
+  </div>
+  <div class="bot-grid">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Detail — <span id="mv-dtitle"></span></span><span class="card-sub">All thicknesses &amp; sizes</span></div>
+      <div class="tbl-wrap"><table><thead id="mv-th"></thead><tbody id="mv-tb"></tbody></table></div>
+      <div class="info-row"><span>Lead time: <strong>5 / 24 weeks</strong></span><span>Weekly: <strong>72 boards</strong></span></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Reserved orders</span></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th class="tl">Customer</th><th class="tl">Date</th><th>5mm</th><th>10mm</th><th>12mm</th><th>16mm</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="tm">EGL</td><td class="tm">15 Jan 2026</td><td>110</td><td>—</td><td>222</td><td>—</td><td><strong>332</strong></td><td><span class="st st-done">Completed</span></td></tr>
+          <tr><td class="tm">Vineyard Construction</td><td class="tm">6 Feb 2026</td><td>—</td><td>—</td><td>—</td><td>101</td><td><strong>101</strong></td><td><span class="st st-part">Part. delivered</span></td></tr>
+          <tr><td class="tm">BL Pangan Construction</td><td class="tm">20 Feb 2026</td><td>—</td><td>100</td><td>—</td><td>—</td><td><strong>100</strong></td><td><span class="st st-ong">Ongoing</span></td></tr>
+          <tr><td class="tm">Leyte Home Depot</td><td class="tm">15 Mar 2026</td><td>875</td><td>—</td><td>535</td><td>—</td><td><strong>1,410</strong></td><td><span class="st st-pend">Pending</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- BANDUNG -->
+<div class="page" id="page-bandung">
+  <div class="mbar" id="bnd-mbar"></div>
+  <div class="site-badge bnd">BANDUNG &nbsp;·&nbsp; <span id="bnd-cur-month" style="font-weight:500"></span></div>
+  <div class="kpi-grid" id="bnd-kpis"></div>
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Monthly trend</span><span class="card-sub">IN · OUT · Balance</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="bnd-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">This month breakdown</span></div>
+      <div class="tbl-wrap" id="bnd-breakdown"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-title">Detail — <span id="bnd-dtitle"></span></span><span class="card-sub">All thicknesses</span></div>
+    <div class="tbl-wrap"><table><thead id="bnd-th"></thead><tbody id="bnd-tb"></tbody></table></div>
+    <div class="info-row"><span>Lead time: <strong>2 days</strong></span><span>Weekly: <strong>68 boards</strong></span></div>
+  </div>
+</div>
+
+<!-- PLASTIMER -->
+<div class="page" id="page-plastimer">
+  <div class="mbar" id="plt-mbar"></div>
+  <div class="site-badge plt">PLASTIMER &nbsp;·&nbsp; <span id="plt-cur-month" style="font-weight:500"></span></div>
+  <div class="kpi-grid" id="plt-kpis"></div>
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Monthly trend</span><span class="card-sub">Produced · IN · Inventory</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="plt-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">This month breakdown</span></div>
+      <div class="tbl-wrap" id="plt-breakdown"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><span class="card-title">Detail — <span id="plt-dtitle"></span></span><span class="card-sub">All thicknesses &amp; sizes</span></div>
+    <div class="tbl-wrap"><table><thead id="plt-th"></thead><tbody id="plt-tb"></tbody></table></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="set-wrap">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">Live data setup</div>
+    <div class="set-card">
+      <div class="set-title">CSV URL configuration</div>
+      <div class="csv-row"><label>Ma Vill CSV</label><input id="mv-url" type="url"/></div>
+      <div class="csv-row"><label>Bandung CSV</label><input id="bnd-url" type="url"/></div>
+      <div class="csv-row"><label>Plastimer CSV</label><input id="plt-url" type="url"/></div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn" onclick="saveReload()">Save &amp; reload</button>
+        <button class="btn btn-sec" onclick="resetUrls()">Reset defaults</button>
+      </div>
+      <div id="smsg2" style="font-size:11px;color:#2d6a0f;margin-top:8px;display:none">Saved! Reloading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const URLS={
+  mv:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGfaduL1MJ4ITssWJby8axfpzqHgBKiqLGteKcFmM1EiSDFiXmG_BcODXzM1Mtf6xkjJS6v9z5lQGN/pub?gid=1292992350&single=true&output=csv',
+  bnd:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3499FbVhrzsriaqTUwRH1Hsl3W0UA1XzIqJ9LPCNVrg59vmGwiEU7RqFUyRESqWyG__j1CeCgi4wV/pub?gid=21327345&single=true&output=csv',
+  plt:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEqOp0B-MTRyVIOJw0ub09Rr90oTkdio5J60jp1ut94TFnhHrq9HwkiWHXEkOMS9ThF_2qwFgYTfBf/pub?gid=1947032610&single=true&output=csv'
+};
+const MV=[],BND=[],PLT=[];
+const charts={};
+
+// HELPERS
+const N=v=>{if(v==null||String(v).trim()==='')return null;const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?null:n;};
+const abs=v=>v==null?null:Math.abs(v);
+const sum=(...a)=>a.reduce((s,v)=>s+(v||0),0);
+const f=v=>v==null?'<span class="vd">—</span>':Number(v).toLocaleString();
+const fi=v=>(!v&&v!==0)?'<span class="vd">—</span>':(v===0?'<span class="vd">0</span>':`<span class="vi">${Number(v).toLocaleString()}</span>`);
+const fo=v=>(!v&&v!==0)?'<span class="vd">—</span>':(v===0?'<span class="vd">0</span>':`<span class="vo">${Number(v).toLocaleString()}</span>`);
+const fb=v=>v==null?'<span class="vd">—</span>':`<span class="vb">${Number(v).toLocaleString()}</span>`;
+const fp=v=>v==null?'<span class="vd">—</span>':`<span class="vp">${Number(v).toLocaleString()}</span>`;
+const totArr=(arr,k)=>arr.filter(d=>!d.empty).reduce((s,d)=>s+(d[k]||0),0);
+
+function parseCSV(txt){
+  const rows=[];
+  txt.trim().split('\n').forEach(line=>{
+    const c=[];let cur='',q=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){q=!q;}else if(ch===','&&!q){c.push(cur.trim());cur='';}else cur+=ch;
+    }
+    c.push(cur.trim());rows.push(c);
+  });
+  return rows;
+}
+
+function padMonths(arr){
+  const active=arr.filter(d=>!d.empty);
+  if(!active.length)return;
+  const yr=active[active.length-1].m.match(/\d{4}/)?.[0]||'2026';
+  ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach(mn=>{
+    if(!arr.find(r=>r.m===`${yr} ${mn}`))arr.push({m:`${yr} ${mn}`,empty:true});
+  });
+}
+
+// PARSERS
+function applyMvCSV(rows){
+  const dr=rows.filter(r=>r[0]&&/\d{4}/.test(r[0]));
+  if(!dr.length)return false;
+  // Log ALL data rows to find bal/fwd columns
+  dr.forEach((r,i)=>{ if(i<3) console.log(`[MV row${i}]`,r[0], r.map((v,j)=>`${j}:${v}`).join(' | ')); });
+  MV.length=0;
+  dr.forEach(r=>{
+    // From console: cols(25), 0=Date, 21=prod, 22=totalIN
+    // cols 23,24 were empty for Dec 2025 — check Jan 2026
+    // 5mm-A: 1(in),2(out) | 5mm-B: 3(in),4(out)
+    // 10mm-A: 5(in),6(out) | 10mm-B: 7(in),8(out)  ← 8 was "0" not 1485
+    // 12mm-A: 9(in),10(out) | 12mm-B: 11(in),12(out) | 12mm-C: 13(in),14(out)
+    // 16mm-A: 15(in),16(out) | 16mm-B: 17(in),18(out) | 16mm-C: 19(in),20(out)
+    MV.push({
+      m:r[0].trim(), empty:false,
+      fwd:  N(r[24]),
+      // Ma Vill verified cols — IN cols are positive, OUT cols negative in sheet
+      s5Ai: N(r[1]),  s5Ao:  abs(N(r[2])),
+      s5Bi: N(r[3]),  s5Bo:  abs(N(r[4])),
+      // 10mm: no OUT column exists — sheet only has IN
+      s10Ai:N(r[5]),  s10Ao: 0,
+      s10Bi:N(r[7]),  s10Bo: 0,
+      s12Ai:N(r[9]),  s12Ao: abs(N(r[10])),
+      s12Bi:N(r[11]), s12Bo: abs(N(r[12])),
+      s12Ci:N(r[13]), s12Co: abs(N(r[14])),
+      s16Ai:N(r[15]), s16Ao: abs(N(r[16])),
+      s16Bi:N(r[17]), s16Bo: abs(N(r[18])),
+      s16Ci:N(r[19]), s16Co: abs(N(r[20])),
+      prod: N(r[21])||0,
+      tin:  N(r[22])||0,
+      bal:  N(r[23])
+    });
+  });
+  padMonths(MV); return true;
+}
+
+function applyBndCSV(rows){
+  const dr=rows.filter(r=>r[0]&&/\d{4}/.test(r[0]));
+  if(!dr.length)return false;
+  BND.length=0;
+  dr.forEach(r=>BND.push({m:r[0].trim(),empty:false,
+    fwd:N(r[10]),
+    t10i:N(r[1]),t10o:abs(N(r[2])),
+    t12i:N(r[3]),t12o:abs(N(r[4])),
+    t16i:N(r[5]),t16o:abs(N(r[6])),
+    prod:N(r[7])||0,tin:N(r[8])||0,bal:N(r[9])}));
+  padMonths(BND);return true;
+}
+
+function applyPltCSV(rows){
+  const dr=rows.filter(r=>r[0]&&/\d{4}/.test(r[0]));
+  if(!dr.length)return false;
+  PLT.length=0;
+  dr.forEach(r=>PLT.push({m:r[0].trim(),empty:false,
+    s5_2400i:N(r[1]),s5_2400o:abs(N(r[2])),s5_2200i:N(r[3]),s5_2200o:abs(N(r[4])),s5_4x8i:N(r[5]),s5_4x8o:abs(N(r[6])),
+    s10_2400i:N(r[7]),s10_2400o:abs(N(r[8])),s10_2200i:N(r[9]),s10_2200o:abs(N(r[10])),s10_4x8i:N(r[11]),s10_4x8o:abs(N(r[12])),
+    s12_2400i:N(r[13]),s12_2400o:abs(N(r[14])),s12_2200i:N(r[15]),s12_2200o:abs(N(r[16])),s12_4x8i:N(r[17]),s12_4x8o:abs(N(r[18])),
+    s16_2400i:N(r[19]),s16_2400o:abs(N(r[20])),s16_2200i:N(r[21]),s16_2200o:abs(N(r[22])),s16_4x8i:N(r[23]),s16_4x8o:abs(N(r[24])),
+    prod:N(r[25])||0,
+    tin:sum(N(r[1]),N(r[3]),N(r[5]),N(r[7]),N(r[9]),N(r[11]),N(r[13]),N(r[15]),N(r[17]),N(r[19]),N(r[21]),N(r[23])),
+    bal:N(r[26])}));
+  padMonths(PLT);return true;
+}
+
+// NAV
+let curSite='mavill';
+function nav(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const map={mavill:0,bandung:1,plastimer:2,settings:3};
+  document.querySelectorAll('.stab')[map[id]]?.classList.add('active');
+  curSite=id;
+}
+
+// CHART BUILDER (bar + line)
+function buildChart(id,labels,barData,lineData,barLabel,lineLabel,barColor,lineColor){
+  if(charts[id]) charts[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  charts[id]=new Chart(ctx,{
+    data:{
+      labels,
+      datasets:[
+        {type:'bar',label:barLabel,data:barData,backgroundColor:barColor+'33',borderColor:barColor,borderWidth:2,borderRadius:4,yAxisID:'y'},
+        {type:'line',label:lineLabel,data:lineData,borderColor:lineColor,backgroundColor:'transparent',borderWidth:2.5,pointRadius:4,pointBackgroundColor:lineColor,tension:.3,yAxisID:'y'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12,padding:16}},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10},callback:v=>v.toLocaleString()}}
+      }
+    }
+  });
+}
+
+// PILLS
+function buildPills(id,active,getSel,setSel,site){
+  const el=document.getElementById(id);
+  el.innerHTML='<span class="mlabel">Month</span>';
+  active.forEach(d=>{
+    const p=document.createElement('span');
+    p.className=`mpill ${site}`+(d.m===getSel()?' active':'');
+    p.textContent=d.m;
+    p.onclick=()=>{setSel(d.m);buildPills(id,active,getSel,setSel,site);refreshSite(site);};
+    el.appendChild(p);
+  });
+}
+
+// MA VILL
+let mvSel=null;
+function buildMv(){
+  const active=MV.filter(d=>!d.empty);
+  if(!mvSel||!active.find(d=>d.m===mvSel)) mvSel=active.slice(-1)[0]?.m;
+  const d=MV.find(r=>r.m===mvSel)||{};
+  document.getElementById('mv-cur-month').textContent=mvSel||'';
+
+  // KPIs
+  const lastBal=active.filter(d=>d.bal!=null).slice(-1)[0]?.bal||0;
+  document.getElementById('mv-kpis').innerHTML=`
+    <div class="kpi green"><div class="kpi-label">Bal. forwarded</div><div class="kpi-val green">${d.fwd!=null?d.fwd.toLocaleString():'—'}</div><div class="kpi-sub">opening stock</div></div>
+    <div class="kpi green"><div class="kpi-label">Total IN</div><div class="kpi-val green">${(d.tin||0).toLocaleString()}</div><div class="kpi-sub">boards received</div></div>
+    <div class="kpi amber"><div class="kpi-label">Total produced</div><div class="kpi-val amber">${(d.prod||0).toLocaleString()}</div><div class="kpi-sub">this month</div></div>
+    <div class="kpi blue"><div class="kpi-label">Closing balance</div><div class="kpi-val blue">${d.bal!=null?d.bal.toLocaleString():'—'}</div><div class="kpi-sub">end of month</div></div>
+    <div class="kpi teal"><div class="kpi-label">All-time balance</div><div class="kpi-val teal">${lastBal.toLocaleString()}</div><div class="kpi-sub">latest month</div></div>`;
+
+  // Chart
+  const labels=active.map(d=>d.m.replace('2026 ','').replace('2025 ',''));
+  buildChart('mv-chart',labels,active.map(d=>d.tin||0),active.map(d=>d.bal||0),'Total IN','Balance','#2d6a0f','#1450a3');
+
+  // Breakdown donut-style summary
+  document.getElementById('mv-breakdown-month').textContent=mvSel;
+  document.getElementById('mv-breakdown').innerHTML=`<table>
+    <thead><tr><th class="tl">Thickness</th><th class="tl">Size</th><th>IN</th><th>OUT</th><th>Balance</th></tr></thead>
+    <tbody>
+      <tr><td class="tl" rowspan="2">5mm</td><td class="tm">A 2400×1200</td><td>${fi(d.s5Ai)}</td><td>${fo(d.s5Ao)}</td><td>${fb((d.s5Ai||0)-(d.s5Ao||0))}</td></tr>
+      <tr><td class="tm">B 2200×1200</td><td>${fi(d.s5Bi)}</td><td>${fo(d.s5Bo)}</td><td>${fb((d.s5Bi||0)-(d.s5Bo||0))}</td></tr>
+      <tr><td class="tl" rowspan="2">10mm</td><td class="tm">A 2400×1200</td><td>${fi(d.s10Ai)}</td><td>${fo(d.s10Ao)}</td><td>${fb((d.s10Ai||0)-(d.s10Ao||0))}</td></tr>
+      <tr><td class="tm">B 2200×1200</td><td>${fi(d.s10Bi)}</td><td>${fo(d.s10Bo)}</td><td>${fb((d.s10Bi||0)-(d.s10Bo||0))}</td></tr>
+      <tr><td class="tl" rowspan="3">12mm</td><td class="tm">A 2400×1200</td><td>${fi(d.s12Ai)}</td><td>${fo(d.s12Ao)}</td><td>${fb((d.s12Ai||0)-(d.s12Ao||0))}</td></tr>
+      <tr><td class="tm">B 2200×1200</td><td>${fi(d.s12Bi)}</td><td>${fo(d.s12Bo)}</td><td>${fb((d.s12Bi||0)-(d.s12Bo||0))}</td></tr>
+      <tr><td class="tm">C 4ft×8ft</td><td>${fi(d.s12Ci)}</td><td>${fo(d.s12Co)}</td><td>${fb((d.s12Ci||0)-(d.s12Co||0))}</td></tr>
+      <tr><td class="tl" rowspan="3">16mm</td><td class="tm">A 2400×1200</td><td>${fi(d.s16Ai)}</td><td>${fo(d.s16Ao)}</td><td>${fb((d.s16Ai||0)-(d.s16Ao||0))}</td></tr>
+      <tr><td class="tm">B 2200×1200</td><td>${fi(d.s16Bi)}</td><td>${fo(d.s16Bo)}</td><td>${fb((d.s16Bi||0)-(d.s16Bo||0))}</td></tr>
+      <tr><td class="tm">C 4ft×8ft</td><td>${fi(d.s16Ci)}</td><td>${fo(d.s16Co)}</td><td>${fb((d.s16Ci||0)-(d.s16Co||0))}</td></tr>
+    </tbody></table>`;
+
+  // Detail
+  document.getElementById('mv-dtitle').textContent=mvSel;
+  document.getElementById('mv-th').innerHTML=`<tr><th class="tl" rowspan="2">Thickness</th><th class="tl" rowspan="2">Size</th><th colspan="2" class="sl">IN / OUT</th><th rowspan="2" class="sl">Balance</th></tr><tr><th class="sl">IN</th><th>OUT</th></tr>`;
+  const mr=(nm,i,o)=>`<tr><td class="tm">${nm}</td><td class="sl">${fi(i)}</td><td>${fo(o)}</td><td class="sl">${fb((i||0)-(o||0))}</td></tr>`;
+  document.getElementById('mv-tb').innerHTML=`
+    <tr><td class="tl" rowspan="2">5mm</td>${mr('A – 2400×1200',d.s5Ai,d.s5Ao).slice(4)}</tr>${mr('B – 2200×1200',d.s5Bi,d.s5Bo)}
+    <tr><td class="tl" rowspan="2">10mm</td>${mr('A – 2400×1200',d.s10Ai,d.s10Ao).slice(4)}</tr>${mr('B – 2200×1200',d.s10Bi,d.s10Bo)}
+    <tr><td class="tl" rowspan="3">12mm</td>${mr('A – 2400×1200',d.s12Ai,d.s12Ao).slice(4)}</tr>${mr('B – 2200×1200',d.s12Bi,d.s12Bo)}${mr('C – 4ft×8ft',d.s12Ci,d.s12Co)}
+    <tr><td class="tl" rowspan="3">16mm</td>${mr('A – 2400×1200',d.s16Ai,d.s16Ao).slice(4)}</tr>${mr('B – 2200×1200',d.s16Bi,d.s16Bo)}${mr('C – 4ft×8ft',d.s16Ci,d.s16Co)}
+    <tr class="tot"><td class="tl" colspan="2">Bal. forwarded</td><td class="sl" colspan="2" style="text-align:center">${d.fwd!=null?`<span class="vb">${d.fwd.toLocaleString()}</span>`:'<span class="vd">—</span>'}</td><td class="sl vd">—</td></tr>
+    <tr class="tot"><td class="tl" colspan="2">Closing balance</td><td class="sl vi">${(d.tin||0).toLocaleString()}</td><td class="vo">${d.prod||0}</td><td class="sl">${fb(d.bal)}</td></tr>`;
+  buildPills('mv-mbar',active,()=>mvSel,v=>{mvSel=v;},`mv`);
+}
+
+// BANDUNG
+let bndSel=null;
+function buildBnd(){
+  const active=BND.filter(d=>!d.empty);
+  if(!bndSel||!active.find(d=>d.m===bndSel)) bndSel=active.slice(-1)[0]?.m;
+  const d=BND.find(r=>r.m===bndSel)||{};
+  document.getElementById('bnd-cur-month').textContent=bndSel||'';
+  const lastBal=active.slice(-1)[0]?.bal||0;
+  document.getElementById('bnd-kpis').innerHTML=`
+    <div class="kpi blue"><div class="kpi-label">Bal. forwarded</div><div class="kpi-val blue">${d.fwd!=null?d.fwd.toLocaleString():'—'}</div><div class="kpi-sub">opening stock</div></div>
+    <div class="kpi green"><div class="kpi-label">Total IN</div><div class="kpi-val green">${(d.tin||0).toLocaleString()}</div><div class="kpi-sub">boards received</div></div>
+    <div class="kpi amber"><div class="kpi-label">Total produced</div><div class="kpi-val amber">${(d.prod||0).toLocaleString()}</div><div class="kpi-sub">this month</div></div>
+    <div class="kpi blue"><div class="kpi-label">Closing balance</div><div class="kpi-val blue">${d.bal!=null?d.bal.toLocaleString():'—'}</div><div class="kpi-sub">end of month</div></div>
+    <div class="kpi teal"><div class="kpi-label">All-time balance</div><div class="kpi-val teal">${lastBal.toLocaleString()}</div><div class="kpi-sub">latest month</div></div>`;
+  const labels=active.map(d=>d.m.replace('2026 ','').replace('2025 ',''));
+  buildChart('bnd-chart',labels,active.map(d=>d.tin||0),active.map(d=>d.bal||0),'Total IN','Balance','#1450a3','#2d6a0f');
+  document.getElementById('bnd-breakdown').innerHTML=`<table>
+    <thead><tr><th class="tl">Thickness</th><th class="tl">Size</th><th>IN</th><th>OUT</th><th>Balance</th></tr></thead>
+    <tbody>
+      <tr><td class="tl">10mm</td><td class="tm">2400×1200</td><td>${fi(d.t10i)}</td><td>${fo(d.t10o)}</td><td>${fb(d.t10i)}</td></tr>
+      <tr><td class="tl">12mm</td><td class="tm">2400×1200</td><td>${fi(d.t12i)}</td><td>${fo(d.t12o)}</td><td>${fb(d.t12i)}</td></tr>
+      <tr><td class="tl">16mm</td><td class="tm">2400×1200</td><td>${fi(d.t16i)}</td><td>${fo(d.t16o)}</td><td>${fb(d.t16i)}</td></tr>
+      <tr class="tot"><td class="tl" colspan="2">Total</td><td class="vi">${(d.tin||0).toLocaleString()}</td><td>—</td><td class="vb">${d.bal!=null?d.bal.toLocaleString():'—'}</td></tr>
+    </tbody></table>`;
+  document.getElementById('bnd-dtitle').textContent=bndSel;
+  document.getElementById('bnd-th').innerHTML=`<tr><th class="tl" rowspan="2">Thickness</th><th class="tl" rowspan="2">Size</th><th colspan="2" class="sl">IN / OUT</th><th rowspan="2" class="sl">Balance</th></tr><tr><th class="sl">IN</th><th>OUT</th></tr>`;
+  document.getElementById('bnd-tb').innerHTML=`
+    <tr><td class="tl">10mm</td><td class="tm">2400×1200</td><td class="sl">${fi(d.t10i)}</td><td>${fo(d.t10o)}</td><td class="sl">${fb(d.t10i)}</td></tr>
+    <tr><td class="tl">12mm</td><td class="tm">2400×1200</td><td class="sl">${fi(d.t12i)}</td><td>${fo(d.t12o)}</td><td class="sl">${fb(d.t12i)}</td></tr>
+    <tr><td class="tl">16mm</td><td class="tm">2400×1200</td><td class="sl">${fi(d.t16i)}</td><td>${fo(d.t16o)}</td><td class="sl">${fb(d.t16i)}</td></tr>
+    <tr class="tot"><td class="tl" colspan="2">Bal. forwarded</td><td class="sl" colspan="2" style="text-align:center">${d.fwd!=null?`<span class="vb">${d.fwd.toLocaleString()}</span>`:'<span class="vd">—</span>'}</td><td class="sl vd">—</td></tr>
+    <tr class="tot"><td class="tl" colspan="2">Closing balance</td><td class="sl vi">${(d.tin||0).toLocaleString()}</td><td>—</td><td class="sl">${fb(d.bal)}</td></tr>`;
+  buildPills('bnd-mbar',active,()=>bndSel,v=>{bndSel=v;},'bnd');
+}
+
+// PLASTIMER
+let pltSel=null;
+function buildPlt(){
+  const active=PLT.filter(d=>!d.empty);
+  if(!active.length){document.getElementById('plt-kpis').innerHTML=`<div class="kpi purple" style="grid-column:1/-1"><div class="kpi-label">Status</div><div style="font-size:13px;color:var(--text3);margin-top:6px">Loading Plastimer data...</div></div>`;return;}
+  if(!pltSel||!active.find(d=>d.m===pltSel)) pltSel=active.slice(-1)[0]?.m;
+  const d=PLT.find(r=>r.m===pltSel)||{};
+  document.getElementById('plt-cur-month').textContent=pltSel||'';
+  const lastBal=active.filter(d=>d.bal!=null).slice(-1)[0]?.bal||0;
+  const totalOut=sum(d.s5_2400o,d.s5_2200o,d.s5_4x8o,d.s10_2400o,d.s10_2200o,d.s10_4x8o,d.s12_2400o,d.s12_2200o,d.s12_4x8o,d.s16_2400o,d.s16_2200o,d.s16_4x8o);
+  document.getElementById('plt-kpis').innerHTML=`
+    <div class="kpi purple"><div class="kpi-label">Total produced</div><div class="kpi-val purple">${(d.prod||0).toLocaleString()}</div><div class="kpi-sub">this month</div></div>
+    <div class="kpi green"><div class="kpi-label">Total IN</div><div class="kpi-val green">${(d.tin||0).toLocaleString()}</div><div class="kpi-sub">boards in</div></div>
+    <div class="kpi red"><div class="kpi-label">Total OUT</div><div class="kpi-val red">${totalOut.toLocaleString()}</div><div class="kpi-sub">boards dispatched</div></div>
+    <div class="kpi blue"><div class="kpi-label">Inventory</div><div class="kpi-val blue">${d.bal!=null?d.bal.toLocaleString():'—'}</div><div class="kpi-sub">end of month</div></div>
+    <div class="kpi teal"><div class="kpi-label">All-time inventory</div><div class="kpi-val teal">${lastBal.toLocaleString()}</div><div class="kpi-sub">latest month</div></div>`;
+  const labels=active.map(d=>d.m.replace('2026 ','').replace('2025 ',''));
+  buildChart('plt-chart',labels,active.map(d=>d.prod||0),active.map(d=>d.bal||0),'Produced','Inventory','#3d2e7c','#1450a3');
+  document.getElementById('plt-breakdown').innerHTML=`<table>
+    <thead><tr><th class="tl">Thickness</th><th>2400mm IN</th><th>2400mm OUT</th><th>2200mm IN</th><th>2200mm OUT</th><th>4×8 IN</th><th>4×8 OUT</th></tr></thead>
+    <tbody>
+      <tr><td class="tl">5mm</td><td>${fi(d.s5_2400i)}</td><td>${fo(d.s5_2400o)}</td><td>${fi(d.s5_2200i)}</td><td>${fo(d.s5_2200o)}</td><td>${fi(d.s5_4x8i)}</td><td>${fo(d.s5_4x8o)}</td></tr>
+      <tr><td class="tl">10mm</td><td>${fi(d.s10_2400i)}</td><td>${fo(d.s10_2400o)}</td><td>${fi(d.s10_2200i)}</td><td>${fo(d.s10_2200o)}</td><td>${fi(d.s10_4x8i)}</td><td>${fo(d.s10_4x8o)}</td></tr>
+      <tr><td class="tl">12mm</td><td>${fi(d.s12_2400i)}</td><td>${fo(d.s12_2400o)}</td><td>${fi(d.s12_2200i)}</td><td>${fo(d.s12_2200o)}</td><td>${fi(d.s12_4x8i)}</td><td>${fo(d.s12_4x8o)}</td></tr>
+      <tr><td class="tl">16mm</td><td>${fi(d.s16_2400i)}</td><td>${fo(d.s16_2400o)}</td><td>${fi(d.s16_2200i)}</td><td>${fo(d.s16_2200o)}</td><td>${fi(d.s16_4x8i)}</td><td>${fo(d.s16_4x8o)}</td></tr>
+    </tbody></table>`;
+  document.getElementById('plt-dtitle').textContent=pltSel;
+  document.getElementById('plt-th').innerHTML=`<tr><th class="tl" rowspan="2">Thickness</th><th colspan="2" class="sl">2400×1200</th><th colspan="2" class="sl">2200×1200</th><th colspan="2" class="sl">4ft×8ft</th><th rowspan="2" class="sl">Total IN</th><th rowspan="2">Total OUT</th></tr><tr><th class="sl">IN</th><th>OUT</th><th class="sl">IN</th><th>OUT</th><th class="sl">IN</th><th>OUT</th></tr>`;
+  const pr=(lbl,i1,o1,i2,o2,i3,o3)=>{
+    const ti=sum(i1,i2,i3),to=sum(o1,o2,o3);
+    return `<tr><td class="tl">${lbl}</td><td class="sl">${fi(i1)}</td><td>${fo(o1)}</td><td class="sl">${fi(i2)}</td><td>${fo(o2)}</td><td class="sl">${fi(i3)}</td><td>${fo(o3)}</td><td class="sl vp">${ti.toLocaleString()}</td><td>${to?fo(to):'<span class="vd">0</span>'}</td></tr>`;
+  };
+  document.getElementById('plt-tb').innerHTML=
+    pr('5mm',d.s5_2400i,d.s5_2400o,d.s5_2200i,d.s5_2200o,d.s5_4x8i,d.s5_4x8o)+
+    pr('10mm',d.s10_2400i,d.s10_2400o,d.s10_2200i,d.s10_2200o,d.s10_4x8i,d.s10_4x8o)+
+    pr('12mm',d.s12_2400i,d.s12_2400o,d.s12_2200i,d.s12_2200o,d.s12_4x8i,d.s12_4x8o)+
+    pr('16mm',d.s16_2400i,d.s16_2400o,d.s16_2200i,d.s16_2200o,d.s16_4x8i,d.s16_4x8o)+
+    `<tr class="tot"><td class="tl" colspan="7">Total produced</td><td class="sl vp">${(d.prod||0).toLocaleString()}</td><td></td></tr>
+     <tr class="tot"><td class="tl" colspan="7">Inventory</td><td class="sl vb">${d.bal!=null?d.bal.toLocaleString():'—'}</td><td></td></tr>`;
+  buildPills('plt-mbar',active,()=>pltSel,v=>{pltSel=v;},'plt');
+}
+
+function refreshSite(site){
+  if(site==='mv'||site==='mavill') buildMv();
+  else if(site==='bnd'||site==='bandung') buildBnd();
+  else if(site==='plt'||site==='plastimer') buildPlt();
+}
+
+function setStatus(live,msg){
+  const dot=document.getElementById('sdot');
+  dot.className='sdot'+(live===true?' live':live===false?' err':'');
+  document.getElementById('smsg').textContent=msg;
+}
+
+// FETCH
+function csvToGviz(u){
+  const id=u.match(/\/e\/(.*?)\/pub/);const gid=u.match(/gid=(\d+)/);
+  if(!id||!gid)return null;
+  return `https://docs.google.com/spreadsheets/d/e/${id[1]}/gviz/tq?tqx=out:csv&gid=${gid[1]}`;
+}
+
+async function fetchAll(){
+  const mvRaw=localStorage.getItem('mv_csv')||URLS.mv;
+  const bndRaw=localStorage.getItem('bnd_csv')||URLS.bnd;
+  const pltRaw=localStorage.getItem('plt_csv')||URLS.plt;
+  document.getElementById('mv-url').value=mvRaw;
+  document.getElementById('bnd-url').value=bndRaw;
+  document.getElementById('plt-url').value=pltRaw;
+  setStatus(null,'Fetching live data...');
+  let ok=0,errs='';
+
+  async function tryFetch(rawUrl, parser, label){
+    // Build multiple URL formats to try
+    const id = rawUrl.match(/\/e\/(.*?)\/pub/)?.[1];
+    const gid = rawUrl.match(/gid=(\d+)/)?.[1];
+    const attempts = [
+      // Direct published CSV — works when CORS is allowed
+      () => fetch(rawUrl, {cache:'no-store'}),
+      // allorigins — most reliable public proxy
+      () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`, {cache:'no-store'}),
+      // corsproxy.io
+      () => fetch(`https://corsproxy.io/?${encodeURIComponent(rawUrl)}`, {cache:'no-store'}),
+      // codetabs
+      () => fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`, {cache:'no-store'}),
+      // htmldriven
+      () => fetch(`https://thingproxy.freeboard.io/fetch/${rawUrl}`, {cache:'no-store'}),
+    ];
+    for(const a of attempts){
+      try{
+        const res = await a();
+        if(!res.ok) continue;
+        const txt = await res.text();
+        console.log(`[${label}] proxy success, length=${txt.length}, first100:`, txt.slice(0,100));
+        if(txt.length > 20 && txt.includes(',') && parser(parseCSV(txt))){ ok++; return; }
+      }catch(e){ console.log(`[${label}] attempt failed:`, e.message); continue; }
+    }
+    errs += ` ${label}: all attempts failed.`;
+  }
+
+  await Promise.all([
+    tryFetch(mvRaw,applyMvCSV,'mavill'),
+    tryFetch(bndRaw,applyBndCSV,'bandung'),
+    tryFetch(pltRaw,applyPltCSV,'plastimer'),
+  ]);
+
+  if(errs)setStatus(false,'Issues:'+errs);
+  else setStatus(true,'Live · Fetched from Google Sheets · '+new Date().toLocaleTimeString());
+
+  mvSel=null;bndSel=null;pltSel=null;
+  buildMv();buildBnd();buildPlt();
+}
+
+function saveReload(){
+  const mv=document.getElementById('mv-url').value.trim();
+  const bnd=document.getElementById('bnd-url').value.trim();
+  const plt=document.getElementById('plt-url').value.trim();
+  if(mv)localStorage.setItem('mv_csv',mv);
+  if(bnd)localStorage.setItem('bnd_csv',bnd);
+  if(plt)localStorage.setItem('plt_csv',plt);
+  document.getElementById('smsg2').style.display='block';
+  setTimeout(()=>{document.getElementById('smsg2').style.display='none';fetchAll();},1000);
+}
+function resetUrls(){
+  ['mv_csv','bnd_csv','plt_csv'].forEach(k=>localStorage.removeItem(k));
+  document.getElementById('mv-url').value=URLS.mv;
+  document.getElementById('bnd-url').value=URLS.bnd;
+  document.getElementById('plt-url').value=URLS.plt;
+}
+
+buildMv();buildBnd();buildPlt();
+fetchAll();
+</script>
+</body>
+</html>
